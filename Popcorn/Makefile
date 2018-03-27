@@ -3,7 +3,7 @@ all:
 
 TARGET = popcorn
 
-OBJS = main.o icon.o popcorn_patch_offset.o ../Stargate/analog_patch.o
+OBJS = main.o keys.o sceamctrl.o icon.o popcorn_patch_offset.o ../Stargate/analog_patch.o
 OBJS += ../Common/utils.o ../Common/strsafe.o ../Common/libs.o
 
 CFLAGS = -Os -G0 -Wall -I. -I../Common -I../include

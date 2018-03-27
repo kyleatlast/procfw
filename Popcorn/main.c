@@ -30,6 +30,7 @@
 #include "strsafe.h"
 #include "libs.h"
 #include "popcorn_patch_offset.h"
+#include "keys.h"
 
 struct Hooks {
 	u32 nid;
@@ -478,32 +479,6 @@ static int save_key(const char *keypath, u8 *key, int size)
 	return ret;
 }
 
-static int load_key(const char *keypath, u8 *key, int size)
-{
-	SceUID keys; 
-	int ret;
-
-	keys = sceIoOpen(keypath, PSP_O_RDONLY, 0777);
-
-	if (keys < 0) {
-		printk("%s: sceIoOpen %s -> 0x%08X\n", __func__, keypath, keys);
-
-		return -1;
-	}
-
-	ret = sceIoRead(keys, key, size); 
-
-	if (ret == size) {
-		ret = 0;
-	} else {
-		ret = -2;
-	}
-
-	sceIoClose(keys);
-
-	return ret;
-}
-
 static int (*sceNpDrmGetVersionKey)(u8 * key, u8 * act, u8 * rif, u32 flags);
 
 static int _sceNpDrmGetVersionKey(u8 * key, u8 * act, u8 * rif, u32 flags)
@@ -942,10 +917,6 @@ static void setup_psx_fw_version(u32 fw_version)
 
 int module_start(SceSize args, void* argp)
 {
-	char keypath[128];
-	int ret;
-	SceIoStat stat;
-
 	psp_fw_version = sceKernelDevkitVersion();
 	setup_patch_offset_table(psp_fw_version);
 	psp_model = sceKernelGetModel();
@@ -954,25 +925,15 @@ int module_start(SceSize args, void* argp)
 	printk_init("ms0:/popcorn.txt");
 	printk("Popcorn: init_file = %s psp_fw_version = 0x%08X psp_model = %d\n", sceKernelInitFileName(), (uint)psp_fw_version, (int)psp_model);
 
-	get_keypath(keypath, sizeof(keypath));
-	ret = sceIoGetstat(keypath, &stat);
-	g_keys_bin_found = 0;
-
-	if(ret == 0) {
-		ret = load_key(keypath, g_keys, sizeof(g_keys));
-
-		if(ret == 0) {
-			g_keys_bin_found = 1;
-			printk("keys.bin found\n");
-		}
-	}
-
 	g_is_custom_ps1 = is_custom_ps1();
 	g_icon0_status = get_icon0_status();
 
 	if(g_is_custom_ps1) {
 		setup_psx_fw_version(psp_fw_version);
-	}
+        g_keys_bin_found = 0;
+	} else {
+        g_keys_bin_found = extract_keys(g_keys);
+    }
 
 	g_previous = sctrlHENSetStartModuleHandler(&popcorn_patch_chain);
 	patch_scePops_Manager();
